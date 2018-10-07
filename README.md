@@ -7,6 +7,7 @@ Ubuntu 17.04
 
     sudo apt install cmake make g++ libx11-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxrandr-dev libxext-dev libxi-dev xorg-dev
     cd comanche
+    git submodule update --init --recursive
     mkdir build
     cd build
     cmake ..
