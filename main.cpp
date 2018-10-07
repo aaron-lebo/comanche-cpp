@@ -221,11 +221,10 @@ mat4 get_matrix() {
         if (glfwGetKey(win, GLFW_KEY_D) == GLFW_PRESS) position += s*right;
     }
 
-    auto mvp = perspective(radians(fov), float(width/height), 0.01f, 1000.f) *
+    last_time = now;
+    return perspective(radians(fov), float(width/height), 0.01f, 1000.f) *
         lookAt(position, position+direction, up) *
         mat4(1);
-    last_time = now;
-    return mvp;
 }
 
 void render() {
@@ -345,10 +344,10 @@ int main() {
         glfwPollEvents();
     }
 
-    glDeleteProgram(block_gl);
+    glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ibo);
-    glDeleteVertexArrays(1, &vao);
+    glDeleteProgram(block_gl);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
