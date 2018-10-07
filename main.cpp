@@ -85,43 +85,43 @@ int glfw_init() {
 
 void check_status(GLuint id, GLenum status) {
     auto get_iv = glGetShaderiv;
-	auto get_log = glGetShaderInfoLog;
-	if (status == GL_LINK_STATUS) {
+    auto get_log = glGetShaderInfoLog;
+    if (status == GL_LINK_STATUS) {
         get_iv = glGetProgramiv;
-		get_log = glGetProgramInfoLog;
+        get_log = glGetProgramInfoLog;
     }
     GLint ok;
-	get_iv(id, status, &ok);
-	if (ok == GL_FALSE) {
+    get_iv(id, status, &ok);
+    if (ok == GL_FALSE) {
         int len;
         get_iv(id, GL_INFO_LOG_LENGTH, &len);
-		vector<char> err(len+1);
-		get_log(id, len, nullptr, &err[0]);
-		fprintf(stderr, "%s\n", &err[0]);
-	}
+        vector<char> err(len+1);
+        get_log(id, len, nullptr, &err[0]);
+        fprintf(stderr, "%s\n", &err[0]);
+    }
 }
 
 GLuint create_shader(GLenum shader, const char* src) {
-	auto id = glCreateShader(shader);
-	glShaderSource(id, 1, &src, nullptr);
-	glCompileShader(id);
-	check_status(id, GL_COMPILE_STATUS);
+    auto id = glCreateShader(shader);
+    glShaderSource(id, 1, &src, nullptr);
+    glCompileShader(id);
+    check_status(id, GL_COMPILE_STATUS);
     return id;
 }
 
 GLuint load_glsl(const char* vertex_src, const char* fragment_src) {
-	auto id = glCreateProgram(),
+    auto id = glCreateProgram(),
          vert = create_shader(GL_VERTEX_SHADER, vertex_src),
          frag = create_shader(GL_FRAGMENT_SHADER, fragment_src);
-	glAttachShader(id, vert);
-	glAttachShader(id, frag);
-	glLinkProgram(id);
-	check_status(id, GL_LINK_STATUS);
-	glDetachShader(id, vert);
-	glDetachShader(id, frag);
-	glDeleteShader(vert);
-	glDeleteShader(frag);
-	return id;
+    glAttachShader(id, vert);
+    glAttachShader(id, frag);
+    glLinkProgram(id);
+    check_status(id, GL_LINK_STATUS);
+    glDetachShader(id, vert);
+    glDetachShader(id, frag);
+    glDeleteShader(vert);
+    glDeleteShader(frag);
+    return id;
 }
 
 void add_face(initializer_list<int> face, bool cond) {
@@ -310,7 +310,7 @@ int main() {
     glGenBuffers(1, &ibo);
 
     block_gl = load_glsl(
- 	    R"(
+        R"(
         #version 330 core
         layout(location = 0) in vec3 xyz;
         uniform mat4 mvp;
@@ -328,7 +328,7 @@ int main() {
     mvp_u = glGetUniformLocation(block_gl, "mvp");
 
     gen_map();
-	while (!glfwWindowShouldClose(win)) {
+    while (!glfwWindowShouldClose(win)) {
         glfwGetFramebufferSize(win, &width, &height);
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -343,12 +343,12 @@ int main() {
 
         glfwSwapBuffers(win);
         glfwPollEvents();
-	}
+    }
 
     glDeleteProgram(block_gl);
-	glDeleteBuffers(1, &vbo);
-	glDeleteBuffers(1, &ibo);
-	glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &ibo);
+    glDeleteVertexArrays(1, &vao);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
