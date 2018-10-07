@@ -1,3 +1,6 @@
+# comanche
+![comanche](comanche.png)
+
 ## install
 
 Ubuntu 17.04
