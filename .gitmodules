@@ -1,0 +1,12 @@
+[submodule "lib/imgui"]
+	path = lib/imgui
+	url = https://github.com/ocornut/imgui
+[submodule "lib/glm"]
+	path = lib/glm
+	url = https://github.com/g-truc/glm
+[submodule "lib/glfw"]
+	path = lib/glfw
+	url = https://github.com/glfw/glfw
+[submodule "lib/OpenSimplexCPP"]
+	path = lib/OpenSimplexCPP
+	url = https://github.com/jonathonracz/OpenSimplexCPP
