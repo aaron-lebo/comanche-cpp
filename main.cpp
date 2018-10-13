@@ -12,28 +12,55 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <lodepng.h>
 #include <OpenSimplex/OpenSimplex.h>
 
 using namespace std;
 using namespace glm;
 
+class Block {
+public:
+    enum Type {WaterDeep=1, WaterShallow, Grass, Forest, Stone, Snow};
+    static constexpr const char* VERTEX_SHADER = R"(
+        #version 330 core
+        uniform mat4 mvp;
+        layout(location = 0) in vec3 xyz;
+        layout(location = 1) in vec2 uv_in;
+        out vec2 uv;
+        void main() {	
+            gl_Position = mvp*vec4(xyz, 1);
+            uv = uv_in;
+        })";
+    static constexpr const char* FRAGMENT_SHADER = R"(
+        #version 330 core
+        uniform sampler2D texture;
+        in vec2 uv;
+        out vec4 color;
+        void main() {
+            color = texture2D(texture, uv);
+        })";
+};
+
 GLFWwindow* win;
 int width, height;
 
-GLuint vbo, ibo, block_gl;
-GLint color_u, mvp_u;
+GLuint vbo, ibo, block_obj, block_gl;
+GLint mvp_u, texture_u;
 
 vector<float> heightmap, vertices;
 vector<int> indices;
+vector<vec2> uvs;
 
 auto color = ImVec4(1, 1, 1, 1);
 auto seed = 0,
      size = 100;
+auto frequency = 1.f,
+     exponent = 1.f;
 
 auto cursor = true;
 
 auto sensitivity = 0.0005f,
-     speed = 30.f,
+     speed = 100.f,
      fov = 60.f;
 auto yaw = radians(45.0), 
      pitch = radians(-15.0);
@@ -83,6 +110,17 @@ int glfw_init() {
     }
 }
 
+void load_texture(const char* filename) {
+    vector<unsigned char> data;
+    unsigned int w, h;
+    auto err = lodepng::decode(data, w, h, filename);
+    if (err) {
+        fprintf(stderr, "load_texture %s failed, error %u: %s\n", filename, err, lodepng_error_text(err));
+        exit(1);
+    }
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, &data[0]);
+}
+
 void check_status(GLuint id, GLenum status) {
     auto get_iv = glGetShaderiv;
     auto get_log = glGetShaderInfoLog;
@@ -125,12 +163,13 @@ GLuint load_glsl(const char* vertex_src, const char* fragment_src) {
 }
 
 void add_face(initializer_list<int> face, bool cond) {
-    if (cond)
-        for (int i : face) indices.push_back(i+(vertices.size()-36)/3);
+    if (cond) 
+        for (int i : face)
+            indices.push_back(i+(vertices.size()-36)/3);
 }
 
 void add_block(int x, int z) {
-    const auto a = 0.4f;
+    const auto a = 0.5f;
     auto y = heightmap[x*size+z],
          y0 = z == size-1 ? -1 : a-y+heightmap[x*size+z+1],
          y1 = z == 0 ? -1 : a-y+heightmap[x*size+z-1],
@@ -150,8 +189,18 @@ void add_block(int x, int z) {
         -a, y3, -a,
          a, y2, -a
     };
-    for (int i = 0; i < verts.size();)
+    for (int i = 0; i < verts.size();) {
         vertices.insert(vertices.end(), {verts[i++]+x, verts[i++]+y, verts[i++]+z});
+
+        auto y0 = y/size;
+        auto type = y0 < -0.5 ? Block::WaterDeep :
+            y0 < 0.0 ? Block::WaterShallow :
+            y0 < 0.3 ? Block::Grass :
+            y0 < 0.5 ? Block::Forest :
+            y0 < 0.7 ? Block::Stone :
+            Block::Snow;
+        uvs.push_back(vec2(type/6.f-0.1, 0));
+    }
 
     add_face({0,  1, 2, 2,  3, 0}, y0 > a && z < size-1); // +z
     add_face({4,  5, 6, 6,  7, 4}, y1 > a && z > 0); // -z
@@ -166,12 +215,18 @@ void gen_map() {
 
     heightmap.clear();
     heightmap.resize(size*size);
-    for (int x = 0; x < size; x++)
-        for (int z = 0; z < size; z++)
-            heightmap[x*size+z] = size*(OpenSimplex::Noise::noise2(ctx, (double)x/size-0.5, (double)z/size-0.5)/2+0.5);
+    for (int x = 0; x < size; x++) {
+        auto nx = frequency*(float(x)/size);
+        for (int z = 0; z < size; z++) {
+            auto nz = frequency*(float(z)/size),
+                 n = OpenSimplex::Noise::noise2(ctx, nx, nz);
+            heightmap[x*size+z] = size*pow(n, n < 0 ? floor(exponent) : exponent);
+        }
+    }
 
     vertices.clear();
     indices.clear();
+    uvs.clear();
     for (int x = 0; x < size; x++)
         for (int z = 0; z < size; z++)
             add_block(x, z);
@@ -180,6 +235,8 @@ void gen_map() {
     glBufferData(GL_ARRAY_BUFFER, vertices.size()*sizeof(float), &vertices[0], GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size()*sizeof(int), &indices[0], GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, block_obj);
+    glBufferData(GL_ARRAY_BUFFER, uvs.size()*sizeof(vec2), &uvs[0], GL_STATIC_DRAW);
 }
 
 mat4 get_matrix() {
@@ -222,22 +279,26 @@ mat4 get_matrix() {
     }
 
     last_time = now;
-    return perspective(radians(fov), float(width/height), 0.01f, 1000.f) *
+    return perspective(radians(fov), float(width/height), 0.01f, 10000.f) *
         lookAt(position, position+direction, up) *
-        mat4(1);
+        scale(mat4(1), vec3(5));
 }
 
 void render() {
     glUseProgram(block_gl);
-    glUniform4f(color_u, color.x, color.y, color.z, color.w);
     glUniformMatrix4fv(mvp_u, 1, false, &get_matrix()[0][0]);
+    glUniform1i(texture_u, 0);
 
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nullptr);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, block_obj);
+    glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, nullptr);
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, nullptr);
     glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
 }
 
 void render_ui() {
@@ -250,13 +311,15 @@ void render_ui() {
     ImGui::ColorEdit3("color", (float*)&color);
     ImGui::InputInt("seed", &seed);
     ImGui::InputInt("size", &size);
+    ImGui::SliderFloat("frequency", &frequency, 1, 7, nullptr);
+    ImGui::SliderFloat("exponent", &exponent, 1, 7, nullptr);
     if (ImGui::Button("reseed")) reseed();
     ImGui::SameLine(); 
     if (ImGui::Button("generate map")) gen_map();
     ImGui::Separator();
 
     ImGui::SliderFloat("sensitivity", &sensitivity, 0.0001, 0.001, nullptr);
-    ImGui::SliderFloat("speed (m/s)", &speed, 0.1, 1000, "%.1f");
+    ImGui::SliderFloat("speed", &speed, 0.1, 1000, "%.1f");
     ImGui::SliderFloat("fov", &fov, 45, 120, "%.1f");
     ImGui::Separator();
 
@@ -301,31 +364,25 @@ int main() {
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    load_texture("textures.png");
+
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
     glGenBuffers(1, &vbo);
     glGenBuffers(1, &ibo);
+    glGenBuffers(1, &block_obj);
 
-    block_gl = load_glsl(
-        R"(
-        #version 330 core
-        layout(location = 0) in vec3 xyz;
-        uniform mat4 mvp;
-        void main() {	
-            gl_Position = mvp * vec4(xyz, 1);
-        })",
-        R"(
-        #version 330 core
-        uniform vec4 color;
-        out vec4 frag_color;
-        void main() {
-            frag_color = color;
-        })"
-    );
-    color_u = glGetUniformLocation(block_gl, "color");
+    block_gl = load_glsl(Block::VERTEX_SHADER, Block::FRAGMENT_SHADER);
     mvp_u = glGetUniformLocation(block_gl, "mvp");
+    texture_u = glGetUniformLocation(block_gl, "texture");
 
     gen_map();
     while (!glfwWindowShouldClose(win)) {
@@ -348,6 +405,7 @@ int main() {
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ibo);
+    glDeleteBuffers(1, &block_obj);
     glDeleteProgram(block_gl);
 
     ImGui_ImplOpenGL3_Shutdown();

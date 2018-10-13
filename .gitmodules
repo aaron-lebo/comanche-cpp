@@ -10,3 +10,6 @@
 [submodule "lib/OpenSimplexCPP"]
 	path = lib/OpenSimplexCPP
 	url = https://github.com/jonathonracz/OpenSimplexCPP
+[submodule "lib/lodepng"]
+	path = lib/lodepng
+	url = https://github.com/lvandeve/lodepng.git

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.6)
 project(comanche)
 
 set(APP_VERSION_MAJOR 0)
-set(APP_VERSION_MINOR 1)
+set(APP_VERSION_MINOR 2)
 set(CMAKE_CXX_STANDARD 11)
 
 add_subdirectory(
@@ -36,12 +36,14 @@ include_directories(
 
 include_directories(
     lib/glm
+    lib/lodepng
     lib/OpenSimplexCPP/include
 )
 
 add_executable(
     comanche
     main.cpp
+    lib/lodepng/lodepng.cpp
 )
 target_link_libraries(
     comanche
@@ -49,3 +51,4 @@ target_link_libraries(
     glfw
     imgui
 )
+configure_file(textures.png textures.png COPYONLY)
