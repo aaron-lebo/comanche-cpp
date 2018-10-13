@@ -44,7 +44,7 @@ public:
 GLFWwindow* win;
 int width, height;
 
-GLuint vbo, ibo, block_obj, block_gl;
+GLuint vbo, ibo, uvo, block_gl;
 GLint mvp_u, texture_u;
 
 vector<float> heightmap, vertices;
@@ -235,7 +235,7 @@ void gen_map() {
     glBufferData(GL_ARRAY_BUFFER, vertices.size()*sizeof(float), &vertices[0], GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size()*sizeof(int), &indices[0], GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, block_obj);
+    glBindBuffer(GL_ARRAY_BUFFER, uvo);
     glBufferData(GL_ARRAY_BUFFER, uvs.size()*sizeof(vec2), &uvs[0], GL_STATIC_DRAW);
 }
 
@@ -294,7 +294,7 @@ void render() {
     glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nullptr);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
     glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ARRAY_BUFFER, block_obj);
+    glBindBuffer(GL_ARRAY_BUFFER, uvo);
     glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, nullptr);
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, nullptr);
     glDisableVertexAttribArray(0);
@@ -378,7 +378,7 @@ int main() {
 
     glGenBuffers(1, &vbo);
     glGenBuffers(1, &ibo);
-    glGenBuffers(1, &block_obj);
+    glGenBuffers(1, &uvo);
 
     block_gl = load_glsl(Block::VERTEX_SHADER, Block::FRAGMENT_SHADER);
     mvp_u = glGetUniformLocation(block_gl, "mvp");
@@ -405,7 +405,7 @@ int main() {
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ibo);
-    glDeleteBuffers(1, &block_obj);
+    glDeleteBuffers(1, &uvo);
     glDeleteProgram(block_gl);
 
     ImGui_ImplOpenGL3_Shutdown();
