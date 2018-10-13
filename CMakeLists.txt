@@ -6,10 +6,8 @@ set(APP_VERSION_MAJOR 0)
 set(APP_VERSION_MINOR 2)
 set(CMAKE_CXX_STANDARD 11)
 
-add_subdirectory(
-    lib/glew-2.1.0/build/cmake
-    lib/glfw
-)
+add_subdirectory(lib/glew-2.1.0/build/cmake)
+add_subdirectory(lib/glfw)
 
 add_library(
     imgui STATIC
@@ -28,13 +26,15 @@ add_library(
     lib/imgui/imstb_textedit.h
     lib/imgui/imstb_truetype.h
 )
-target_compile_definitions(imgui PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLEW)
+target_compile_definitions(imgui PRIVATE GLEW_STATIC IMGUI_IMPL_OPENGL_LOADER_GLEW)
 include_directories(
     lib/imgui
     lib/imgui/examples
 )
 
 include_directories(
+    lib/glew-2.1.0/include
+    lib/glfw/include
     lib/glm
     lib/lodepng
     lib/OpenSimplexCPP/include
@@ -45,10 +45,13 @@ add_executable(
     main.cpp
     lib/lodepng/lodepng.cpp
 )
+#set(CMAKE_EXE_LINKER_FLAGS " -static")
 target_link_libraries(
     comanche
-    glew
-    glfw
+    #-static-libgcc
     imgui
+    glew_s
+    glfw
+    #opengl32
 )
 configure_file(textures.png textures.png COPYONLY)
