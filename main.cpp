@@ -51,7 +51,7 @@ vector<float> heightmap, vertices;
 vector<int> indices;
 vector<vec2> uvs;
 
-auto color = ImVec4(1, 1, 1, 1);
+auto sky_color = ImVec4(0, 0, 0, 0);
 auto seed = 0,
      size = 100;
 auto frequency = 1.f,
@@ -308,7 +308,7 @@ void render_ui() {
     ImGui::SetNextWindowSize(ImVec2(400, 450), ImGuiCond_FirstUseEver);
     ImGui::Begin("comanche");
 
-    ImGui::ColorEdit3("color", (float*)&color);
+    ImGui::ColorEdit3("sky color", (float*)&sky_color);
     ImGui::InputInt("seed", &seed);
     ImGui::InputInt("size", &size);
     ImGui::SliderFloat("frequency", &frequency, 1, 7, nullptr);
@@ -359,7 +359,6 @@ int main() {
     ImGui_ImplOpenGL3_Init("#version 150");
     ImGui::StyleColorsDark();
 
-    glClearColor(0, 0, 0, 0);
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -388,6 +387,7 @@ int main() {
     while (!glfwWindowShouldClose(win)) {
         glfwGetFramebufferSize(win, &width, &height);
         glViewport(0, 0, width, height);
+        glClearColor(sky_color.x, sky_color.y, sky_color.z, sky_color.w);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
         render();
